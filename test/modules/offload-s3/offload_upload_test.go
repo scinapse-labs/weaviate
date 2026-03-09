@@ -469,6 +469,10 @@ func Test_UploadS3Journey(t *testing.T) {
 			})
 		})
 
+		t.Run("simulate Minio network outage", func(t *testing.T) {
+			require.Nil(t, compose.DisconnectFromNetwork(ctx, docker.MinIO))
+		})
+
 		t.Run("terminate Minio", func(t *testing.T) {
 			require.Nil(t, compose.TerminateContainer(ctx, docker.MinIO))
 		})
