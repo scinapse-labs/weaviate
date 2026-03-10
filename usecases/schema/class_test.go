@@ -1388,6 +1388,78 @@ func Test_UpdateClass(t *testing.T) {
 		fakeSchemaManager.AssertExpectations(t)
 	})
 
+	t.Run("immutable vectorizer properties", func(t *testing.T) {
+		handler, fakeSchemaManager := newTestHandler(t, &fakeDB{})
+
+		store := NewFakeStore()
+		store.parser = handler.parser
+
+		initial := &models.Class{
+			Class: "Immutable",
+			ReplicationConfig: &models.ReplicationConfig{
+				Factor: 1,
+			},
+			VectorConfig: map[string]models.VectorConfig{
+				"example": {
+					VectorIndexType: "hnsw",
+					VectorIndexConfig: hnsw.UserConfig{
+						SkipDefaultQuantization:  true,
+						TrackDefaultQuantization: true,
+					},
+					Vectorizer: map[string]any{
+						"none": map[string]any{},
+					},
+				},
+			},
+		}
+
+		vectorIndexConfig := initial.VectorConfig["example"].VectorIndexConfig.(hnsw.UserConfig)
+		vectorIndexConfig.SetDefaults()
+		vectorIndexConfig.SkipDefaultQuantization = false
+		vectorIndexConfig.TrackDefaultQuantization = false
+
+		update := &models.Class{
+			Class: "Immutable",
+			ReplicationConfig: &models.ReplicationConfig{
+				Factor: 1,
+			},
+			VectorConfig: map[string]models.VectorConfig{
+				"example": {
+					VectorIndexType:   "hnsw",
+					VectorIndexConfig: vectorIndexConfig,
+					Vectorizer: map[string]any{
+						"none": map[string]any{},
+					},
+				},
+			},
+		}
+
+		fakeSchemaManager.On("AddClass", initial, mock.Anything).Return(nil)
+		fakeSchemaManager.On("QueryCollectionsCount").Return(0, nil)
+		fakeSchemaManager.On("UpdateClass", mock.Anything, mock.Anything).Return(nil)
+		fakeSchemaManager.On("ReadOnlyClass", initial.Class, mock.Anything).Return(initial)
+		fakeSchemaManager.On("CopyShardingState", mock.Anything).Return(&sharding.State{}, nil)
+		if len(initial.Properties) > 0 {
+			fakeSchemaManager.On("ReadOnlyClass", initial.Class, mock.Anything).Return(initial)
+		}
+		handler.schemaConfig.MaximumAllowedCollectionsCount = runtime.NewDynamicValue(-1)
+		_, _, err := handler.AddClass(t.Context(), nil, initial)
+		assert.Nil(t, err)
+		store.AddClass(initial)
+
+		fakeSchemaManager.On("UpdateClass", mock.Anything, mock.Anything).Return(nil)
+
+		err = handler.UpdateClass(t.Context(), nil, initial.Class, update)
+		assert.NoError(t, err, "handler update")
+
+		err = store.UpdateClass(update)
+		assert.NoError(t, err, "update in store")
+
+		stored := store.collections["Immutable"]
+		require.True(t, stored.VectorConfig["example"].VectorIndexConfig.(fakeVectorConfig).raw.(hnsw.UserConfig).SkipDefaultQuantization)
+		require.True(t, stored.VectorConfig["example"].VectorIndexConfig.(fakeVectorConfig).raw.(hnsw.UserConfig).TrackDefaultQuantization)
+	})
+
 	t.Run("fields validation", func(t *testing.T) {
 		tests := []struct {
 			name          string
