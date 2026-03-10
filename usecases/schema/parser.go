@@ -107,7 +107,7 @@ func (p *Parser) parseVectorConfig(class *models.Class) error {
 	for vector, config := range class.VectorConfig {
 		mapMC, ok := config.Vectorizer.(map[string]any)
 		if !ok {
-			return fmt.Errorf("vectorizer for %s is not a map, got %v", vector, config)
+			return fmt.Errorf("vectorizer for %s is not a map, got %v", vector, config.Vectorizer)
 		}
 
 		mc, err := p.moduleConfig(mapMC)
