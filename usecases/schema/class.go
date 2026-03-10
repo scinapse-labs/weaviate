@@ -336,11 +336,12 @@ func (h *Handler) UpdateClass(ctx context.Context, principal *models.Principal,
 		}
 	}
 
-	return UpdateClassInternal(h, ctx, className, initial, updated)
+	return UpdateClassInternal(h, ctx, className, updated)
 }
 
 // bypass the auth check for internal class update requests
-func UpdateClassInternal(h *Handler, ctx context.Context, className string, initial, updated *models.Class) error {
+func UpdateClassInternal(h *Handler, ctx context.Context, className string, updated *models.Class,
+) error {
 	// make sure unset optionals on 'updated' don't lead to an error, as all
 	// optionals would have been set with defaults on the initial already
 	if err := h.setClassDefaults(updated, h.config.Replication); err != nil {
@@ -372,6 +373,8 @@ func UpdateClassInternal(h *Handler, ctx context.Context, className string, init
 	if err := h.validateVectorSettings(updated); err != nil {
 		return err
 	}
+
+	initial := h.schemaReader.ReadOnlyClass(className)
 
 	if initial != nil {
 		_, err := validateUpdatingMT(initial, updated)

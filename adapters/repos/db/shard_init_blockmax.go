@@ -42,24 +42,23 @@ func structToMap(obj interface{}) (newMap interface{}) {
 }
 
 func updateToBlockMaxInvertedIndexConfig(ctx context.Context, sc *schema.Manager, className string) error {
-	initial := sc.ReadOnlyClass(className)
-	if initial == nil {
+	class := sc.ReadOnlyClass(className)
+	if class == nil {
 		return fmt.Errorf("class %q not found", className)
 	}
 	// nothing to update
-	if initial.InvertedIndexConfig.UsingBlockMaxWAND {
+	if class.InvertedIndexConfig.UsingBlockMaxWAND {
 		return nil
 	}
-	updated := *initial
-	updated.ModuleConfig = structToMap(updated.ModuleConfig)
-	updated.VectorIndexConfig = structToMap(updated.VectorIndexConfig)
-	updated.ShardingConfig = structToMap(updated.ShardingConfig)
-	for i := range updated.VectorConfig {
-		tempConfig := updated.VectorConfig[i]
+	class.ModuleConfig = structToMap(class.ModuleConfig)
+	class.VectorIndexConfig = structToMap(class.VectorIndexConfig)
+	class.ShardingConfig = structToMap(class.ShardingConfig)
+	for i := range class.VectorConfig {
+		tempConfig := class.VectorConfig[i]
 		tempConfig.VectorIndexConfig = structToMap(tempConfig.VectorIndexConfig)
 		tempConfig.Vectorizer = structToMap(tempConfig.Vectorizer)
-		updated.VectorConfig[i] = tempConfig
+		class.VectorConfig[i] = tempConfig
 	}
-	updated.InvertedIndexConfig.UsingBlockMaxWAND = true
-	return schema.UpdateClassInternal(&sc.Handler, ctx, className, initial, &updated)
+	class.InvertedIndexConfig.UsingBlockMaxWAND = true
+	return schema.UpdateClassInternal(&sc.Handler, ctx, className, class)
 }
