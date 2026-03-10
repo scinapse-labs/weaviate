@@ -80,6 +80,19 @@ func (pw *ParquetWriter) WriteObject(obj *storobj.Object) error {
 	return nil
 }
 
+// WriteRow writes a pre-converted row to the Parquet file (buffered).
+// This is used by the parallel export path where conversion happens in
+// worker goroutines.
+func (pw *ParquetWriter) WriteRow(row ParquetRow) error {
+	pw.buffer = append(pw.buffer, row)
+
+	if len(pw.buffer) >= pw.batchSize {
+		return pw.Flush()
+	}
+
+	return nil
+}
+
 // Flush writes all buffered rows to the Parquet file
 func (pw *ParquetWriter) Flush() error {
 	if len(pw.buffer) == 0 {

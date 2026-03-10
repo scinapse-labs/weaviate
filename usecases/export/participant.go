@@ -350,7 +350,7 @@ func (p *Participant) exportClassShards(
 			}
 			defer release()
 
-			objects, err := p.exportShardToFile(ctx, backend, req, className, shardName, shard, isMT)
+			objects, err := p.exportShardToFile(ctx, eg, backend, req, className, shardName, shard, isMT)
 			if err != nil {
 				nodeStatus.SetShardProgress(className, shardName, export.ShardFailed, 0, err.Error(), "")
 				return fmt.Errorf("export shard %s: %w", shardName, err)
@@ -367,6 +367,7 @@ func (p *Participant) exportClassShards(
 // exportShardToFile exports a single shard to a Parquet file: {ClassName}_{ShardName}.parquet
 func (p *Participant) exportShardToFile(
 	ctx context.Context,
+	eg *enterrors.ErrorGroupWrapper,
 	backend modulecapabilities.BackupBackend,
 	req *ExportRequest,
 	className, shardName string,
@@ -395,7 +396,7 @@ func (p *Participant) exportShardToFile(
 		writer.SetFileMetadata("tenant", shardName)
 	}
 
-	if err := exportShardData(ctx, shard, writer, className, p.logger); err != nil {
+	if err := exportShardDataParallel(ctx, eg, shard, writer, className, p.logger); err != nil {
 		_ = writer.Close()
 		pw.CloseWithError(err)
 		<-errChan
